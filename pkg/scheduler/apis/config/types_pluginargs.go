@@ -181,3 +181,14 @@ type VolumeBindingArgs struct {
 	// If this value is nil, the default value will be used.
 	BindTimeoutSeconds int64
 }
+
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// NodeResourceTopologyMatchArgs holds arguments used to configure the NodeResourceTopologyMatch plugin
+type NodeResourceTopologyMatchArgs struct {
+	metav1.TypeMeta
+
+	KubeConfig string
+	MasterOverride string
+}
