@@ -3849,6 +3849,11 @@ func (in *PodSpec) DeepCopyInto(out *PodSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.TopologyPolicy != nil {
+		in, out := &in.TopologyPolicy, &out.TopologyPolicy
+		*out = new(TopologyManagerPolicy)
+		**out = **in
+	}
 	return
 }
 

@@ -290,6 +290,23 @@ func validateOverhead(overhead core.ResourceList, fldPath *field.Path) field.Err
 	return ValidateResourceRequirements(&core.ResourceRequirements{Limits: overhead}, fldPath)
 }
 
+var validTopoPolicies = sets.NewString(
+	string(core.NoneTopologyManagerPolicy),
+	string(core.BestEffortTopologyManagerPolicy),
+	string(core.RestrictedTopologyManagerPolicy),
+	string(core.SingleNUMANodeTopologyManagerPolicy),
+	string(core.PodLevelSingleNUMANodeTopologyManagerPolicy))
+
+func validateNodeTopology(topologyPolicy *core.TopologyManagerPolicy, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	if !validTopoPolicies.Has(string(*topologyPolicy))  {
+		message := fmt.Sprintf("%s is not valid topology policy", *topologyPolicy)
+		allErrs = append(allErrs, field.Invalid(fldPath, topologyPolicy, message))
+	}
+	return allErrs
+}
+
+
 // Validates that given value is not negative.
 func ValidateNonnegativeField(value int64, fldPath *field.Path) field.ErrorList {
 	return apimachineryvalidation.ValidateNonnegativeField(value, fldPath)
@@ -3237,6 +3254,10 @@ func ValidatePodSpec(spec *core.PodSpec, fldPath *field.Path) field.ErrorList {
 
 	if spec.Overhead != nil {
 		allErrs = append(allErrs, validateOverhead(spec.Overhead, fldPath.Child("overhead"))...)
+	}
+
+	if spec.TopologyPolicy != nil {
+		allErrs = append(allErrs, validateNodeTopology(spec.TopologyPolicy, fldPath.Child("topology"))...)
 	}
 
 	return allErrs

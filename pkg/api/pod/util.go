@@ -416,6 +416,10 @@ func dropDisabledFields(
 		// Set TopologySpreadConstraints to nil only if feature is disabled and it is not used
 		podSpec.TopologySpreadConstraints = nil
 	}
+
+	if !utilfeature.DefaultFeatureGate.Enabled(features.TopologyManager) && podSpec.TopologyPolicy != nil {
+		podSpec.TopologyPolicy = nil
+	}
 }
 
 // dropDisabledRunAsGroupField removes disabled fields from PodSpec related

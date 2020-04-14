@@ -3047,6 +3047,9 @@ type PodSpec struct {
 	// +listMapKey=topologyKey
 	// +listMapKey=whenUnsatisfiable
 	TopologySpreadConstraints []TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty" patchStrategy:"merge" patchMergeKey:"topologyKey" protobuf:"bytes,33,opt,name=topologySpreadConstraints"`
+	// Pod level topology manager policy
+	// +optional
+	TopologyPolicy *TopologyManagerPolicy `json:"topologyPolicy,omitempty" protobuf:"bytes,33,opt,name=topologyPolicy"`
 }
 
 type UnsatisfiableConstraintAction string
@@ -3183,6 +3186,25 @@ type PodSecurityContext struct {
 	// +optional
 	Sysctls []Sysctl `json:"sysctls,omitempty" protobuf:"bytes,7,rep,name=sysctls"`
 }
+
+// TopologyManagerPolicy defines the supported policies of Topology Manager 
+type TopologyManagerPolicy string
+
+const (
+	NoneTopologyManagerPolicy TopologyManagerPolicy = "none"
+	// BestEffortTopologyManagerPolicy is a mode in which kubelet will favour
+	// pods with NUMA alignment of CPU and device resources.
+	BestEffortTopologyManagerPolicy TopologyManagerPolicy = "best-effort"
+	// RestrictedTopologyManagerPolicy is a mode in which kubelet only allows
+	// pods with optimal NUMA node alignment for requested resources
+	RestrictedTopologyManagerPolicy TopologyManagerPolicy = "restricted"
+	// SingleNumaNodeTopologyManagerPolicy is a mode in which kubelet only allows
+	// pods with a single NUMA alignment of CPU and device resources.
+	SingleNUMANodeTopologyManagerPolicy TopologyManagerPolicy = "single-numa-node"
+	// PodLevelSingleNUMANodeTopologyManagerPolicy is a mode in which kubelet only allows
+	// allocation of all container's resources in the pod on the same NUMA node
+	PodLevelSingleNUMANodeTopologyManagerPolicy TopologyManagerPolicy = "pod-level-single-numa-node"
+)
 
 // PodQOSClass defines the supported qos classes of Pods.
 type PodQOSClass string

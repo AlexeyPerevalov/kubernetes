@@ -6893,6 +6893,8 @@ func TestValidatePod(t *testing.T) {
 		}
 		return spec
 	}
+	bestEffortTopologyPolicy := core.BestEffortTopologyManagerPolicy
+	unknownTopologyPolicy := core.TopologyManagerPolicy("unknown-topology-policy")
 
 	successCases := []core.Pod{
 		{ // Basic fields.
@@ -7371,6 +7373,15 @@ func TestValidatePod(t *testing.T) {
 						},
 					},
 				},
+			},
+		},
+		{ // valid node topology
+			ObjectMeta: metav1.ObjectMeta{Name: "node-topo", Namespace: "ns"},
+			Spec: core.PodSpec{
+				TopologyPolicy: &bestEffortTopologyPolicy,
+				DNSPolicy:      core.DNSClusterFirst,
+				RestartPolicy:  core.RestartPolicyAlways,
+				Containers:     []core.Container{{Name: "ctr", Image: "image", ImagePullPolicy: "IfNotPresent",  TerminationMessagePolicy: "File"}},
 			},
 		},
 	}
@@ -8220,6 +8231,18 @@ func TestValidatePod(t *testing.T) {
 							},
 						},
 					},
+				},
+			},
+		},
+		"bad topology policy": {
+			expectedError: "spec.topology: Invalid value: \"unknown-topology-policy\": unknown-topology-policy is not valid topology policy",
+			spec: core.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "node-topo", Namespace: "ns"},
+				Spec: core.PodSpec{
+					TopologyPolicy: &unknownTopologyPolicy,
+					DNSPolicy:      core.DNSClusterFirst,
+					RestartPolicy:  core.RestartPolicyAlways,
+					Containers:     []core.Container{{Name: "ctr", Image: "image", ImagePullPolicy: "IfNotPresent",  TerminationMessagePolicy: "File"}},
 				},
 			},
 		},
