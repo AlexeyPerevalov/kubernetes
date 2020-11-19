@@ -18,6 +18,14 @@ limitations under the License.
 
 package v1beta1
 
+// NodeResourceTopologyListerExpansion allows custom methods to be added to
+// NodeResourceTopologyLister.
+type NodeResourceTopologyListerExpansion interface{}
+
+// NodeResourceTopologyNamespaceListerExpansion allows custom methods to be added to
+// NodeResourceTopologyNamespaceLister.
+type NodeResourceTopologyNamespaceListerExpansion interface{}
+
 // RuntimeClassListerExpansion allows custom methods to be added to
 // RuntimeClassLister.
 type RuntimeClassListerExpansion interface{}

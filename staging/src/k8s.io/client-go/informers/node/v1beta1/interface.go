@@ -24,6 +24,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// NodeResourceTopologies returns a NodeResourceTopologyInformer.
+	NodeResourceTopologies() NodeResourceTopologyInformer
 	// RuntimeClasses returns a RuntimeClassInformer.
 	RuntimeClasses() RuntimeClassInformer
 }
@@ -37,6 +39,11 @@ type version struct {
 // New returns a new Interface.
 func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakListOptions internalinterfaces.TweakListOptionsFunc) Interface {
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
+}
+
+// NodeResourceTopologies returns a NodeResourceTopologyInformer.
+func (v *version) NodeResourceTopologies() NodeResourceTopologyInformer {
+	return &nodeResourceTopologyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // RuntimeClasses returns a RuntimeClassInformer.

@@ -26,12 +26,17 @@ import (
 
 type NodeV1beta1Interface interface {
 	RESTClient() rest.Interface
+	NodeResourceTopologiesGetter
 	RuntimeClassesGetter
 }
 
 // NodeV1beta1Client is used to interact with features provided by the node.k8s.io group.
 type NodeV1beta1Client struct {
 	restClient rest.Interface
+}
+
+func (c *NodeV1beta1Client) NodeResourceTopologies(namespace string) NodeResourceTopologyInterface {
+	return newNodeResourceTopologies(c, namespace)
 }
 
 func (c *NodeV1beta1Client) RuntimeClasses() RuntimeClassInterface {

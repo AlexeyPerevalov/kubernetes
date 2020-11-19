@@ -28,6 +28,10 @@ type FakeNodeV1beta1 struct {
 	*testing.Fake
 }
 
+func (c *FakeNodeV1beta1) NodeResourceTopologies(namespace string) v1beta1.NodeResourceTopologyInterface {
+	return &FakeNodeResourceTopologies{c, namespace}
+}
+
 func (c *FakeNodeV1beta1) RuntimeClasses() v1beta1.RuntimeClassInterface {
 	return &FakeRuntimeClasses{c}
 }
