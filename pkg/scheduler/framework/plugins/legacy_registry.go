@@ -129,6 +129,8 @@ const (
 	NoVolumeZoneConflictPred = "NoVolumeZoneConflict"
 	// EvenPodsSpreadPred defines the name of predicate EvenPodsSpread.
 	EvenPodsSpreadPred = "EvenPodsSpread"
+	// NodeResourceTopologyMatc
+	NodeResourceTopologyMatch = "NodeResourceTopologyMatch"
 )
 
 // predicateOrdering is the ordering of predicate execution.
@@ -250,6 +252,11 @@ func NewLegacyRegistry() *LegacyRegistry {
 	registry.registerPredicateConfigProducer(HostNamePred,
 		func(_ ConfigProducerArgs, plugins *config.Plugins, _ *[]config.PluginConfig) {
 			plugins.Filter = appendToPluginSet(plugins.Filter, nodename.Name, nil)
+		})
+	registry.registerPredicateConfigProducer(NodeResourceTopologyMatch,
+		func(_ ConfigProducerArgs, plugins *config.Plugins, pluginConfig *[]config.PluginConfig) {
+			plugins.Filter = appendToPluginSet(plugins.Filter, noderesources.NodeResourceTopologyMatchName, nil)
+			*pluginConfig = append(*pluginConfig, config.PluginConfig{Name: noderesources.NodeResourceTopologyMatchName, Args: &config.NodeResourceTopologyMatchArgs{KubeConfig: "/root/.kube/config", MasterOverride: "127.0.0.1"}})
 		})
 	registry.registerPredicateConfigProducer(PodFitsHostPortsPred,
 		func(_ ConfigProducerArgs, plugins *config.Plugins, _ *[]config.PluginConfig) {
