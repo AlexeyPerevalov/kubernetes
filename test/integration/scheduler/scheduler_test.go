@@ -20,7 +20,12 @@ package scheduler
 
 import (
 	"context"
+	"k8s.io/component-base/featuregate"
+	featuregatetesting "k8s.io/component-base/featuregate/testing"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
+
 	"fmt"
+	"k8s.io/kubernetes/pkg/features"
 	"testing"
 	"time"
 
@@ -273,7 +278,6 @@ priorities: []
 		eventBroadcaster := events.NewBroadcaster(&events.EventSinkImpl{Interface: clientSet.EventsV1()})
 		stopCh := make(chan struct{})
 		eventBroadcaster.StartRecordingToSink(stopCh)
-
 		sched, err := scheduler.New(clientSet,
 			informerFactory,
 			profile.NewRecorderFactory(eventBroadcaster),
@@ -301,7 +305,136 @@ priorities: []
 		if err != nil {
 			t.Fatalf("couldn't make scheduler config for test %d: %v", i, err)
 		}
+		schedPlugins := sched.Profiles[v1.DefaultSchedulerName].ListPlugins()
+		if diff := cmp.Diff(test.expectedPlugins, schedPlugins); diff != "" {
+			t.Errorf("unexpected plugins diff (-want, +got): %s", diff)
+		}
+	}
+}
 
+func TestSchedulerCreationWithFeatureFlag(t *testing.T) {
+	_, s, closeFn := framework.RunAMaster(nil)
+	defer closeFn()
+
+	ns := framework.CreateTestingNamespace("configmap", s, t)
+	defer framework.DeleteTestingNamespace(ns, s, t)
+
+	clientSet := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &schema.GroupVersion{Group: "", Version: "v1"}}})
+	defer clientSet.CoreV1().Nodes().DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{})
+	informerFactory := scheduler.NewInformerFactory(clientSet, 0)
+
+	for i, test := range []struct {
+		featureFlags    map[featuregate.Feature]bool
+		policy          string
+		expectedPlugins map[string][]kubeschedulerconfig.Plugin
+	}{
+		{
+			featureFlags: map[featuregate.Feature]bool{
+				features.NodeResourceTopology: false,
+			},
+			policy: `{
+				"kind" : "Policy",
+				"apiVersion" : "v1",
+				"predicates" : [
+					{"name" : "PodFitsResources"}
+				],
+				"priorities" : [
+					{"name" : "ImageLocalityPriority", "weight" : 1}
+				]
+			}`,
+			expectedPlugins: map[string][]kubeschedulerconfig.Plugin{
+				"QueueSortPlugin": {{Name: "PrioritySort"}},
+				"PreFilterPlugin": {
+					{Name: "NodeResourcesFit"},
+				},
+				"FilterPlugin": {
+					{Name: "NodeUnschedulable"},
+					{Name: "NodeResourcesFit"},
+					{Name: "TaintToleration"},
+				},
+				"PostFilterPlugin": {{Name: "DefaultPreemption"}},
+				"ScorePlugin": {
+					{Name: "ImageLocality", Weight: 1},
+				},
+				"BindPlugin": {{Name: "DefaultBinder"}},
+			},
+		},
+		{
+			featureFlags: map[featuregate.Feature]bool{
+				features.NodeResourceTopology: true,
+			},
+			policy: `{
+				"kind" : "Policy",
+				"apiVersion" : "v1",
+				"predicates" : [
+					{"name" : "NodeResourceTopologyMatch"}
+				],
+				"priorities" : [
+					{"name" : "ImageLocalityPriority", "weight" : 1}
+				]
+			}`,
+			expectedPlugins: map[string][]kubeschedulerconfig.Plugin{
+				"QueueSortPlugin": {{Name: "PrioritySort"}},
+				"FilterPlugin": {
+					{Name: "NodeUnschedulable"},
+					{Name: "TaintToleration"},
+					{Name: "NodeResourceTopologyMatch"},
+				},
+				"PostFilterPlugin": {{Name: "DefaultPreemption"}},
+				"ScorePlugin": {
+					{Name: "ImageLocality", Weight: 1},
+				},
+				"BindPlugin": {{Name: "DefaultBinder"}},
+			},
+		},
+	} {
+		revertFeatureGates :=  []func(){}
+		for flag, value:= range test.featureFlags {
+			revertFeatureGates = append(revertFeatureGates, featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, flag, value))
+		}
+		// Add a ConfigMap object.
+		configPolicyName := fmt.Sprintf("scheduler-custom-policy-config-%d", i)
+		policyConfigMap := v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Namespace: metav1.NamespaceSystem, Name: configPolicyName},
+			Data:       map[string]string{kubeschedulerconfig.SchedulerPolicyConfigMapKey: test.policy},
+		}
+
+		policyConfigMap.APIVersion = "v1"
+		clientSet.CoreV1().ConfigMaps(metav1.NamespaceSystem).Create(context.TODO(), &policyConfigMap, metav1.CreateOptions{})
+
+		eventBroadcaster := events.NewBroadcaster(&events.EventSinkImpl{Interface: clientSet.EventsV1()})
+		stopCh := make(chan struct{})
+		eventBroadcaster.StartRecordingToSink(stopCh)
+		sched, err := scheduler.New(clientSet,
+			informerFactory,
+			profile.NewRecorderFactory(eventBroadcaster),
+			nil,
+			scheduler.WithAlgorithmSource(kubeschedulerconfig.SchedulerAlgorithmSource{
+				Policy: &kubeschedulerconfig.SchedulerPolicySource{
+					ConfigMap: &kubeschedulerconfig.SchedulerPolicyConfigMapSource{
+						Namespace: policyConfigMap.Namespace,
+						Name:      policyConfigMap.Name,
+					},
+				},
+			}),
+			scheduler.WithProfiles(kubeschedulerconfig.KubeSchedulerProfile{
+				SchedulerName: v1.DefaultSchedulerName,
+				PluginConfig: []kubeschedulerconfig.PluginConfig{
+					{
+						Name: "VolumeBinding",
+						Args: &kubeschedulerconfig.VolumeBindingArgs{
+							BindTimeoutSeconds: 30,
+						},
+					},
+				},
+			}),
+		)
+		for _, f := range revertFeatureGates {
+			f()
+		}
+		if err != nil {
+			t.Fatalf("couldn't make scheduler config for test %d: %v", i, err)
+		}
 		schedPlugins := sched.Profiles[v1.DefaultSchedulerName].ListPlugins()
 		if diff := cmp.Diff(test.expectedPlugins, schedPlugins); diff != "" {
 			t.Errorf("unexpected plugins diff (-want, +got): %s", diff)

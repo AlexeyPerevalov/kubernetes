@@ -263,6 +263,7 @@ func NewFramework(r Registry, plugins *config.Plugins, args []config.PluginConfi
 	pg := f.pluginsNeeded(plugins)
 
 	pluginConfig := make(map[string]runtime.Object, len(args))
+
 	for i := range args {
 		name := args[i].Name
 		if _, ok := pluginConfig[name]; ok {

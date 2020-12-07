@@ -69,7 +69,7 @@ func ListAlgorithmProviders() string {
 }
 
 func getDefaultConfig() *schedulerapi.Plugins {
-	ret := &schedulerapi.Plugins{
+	return &schedulerapi.Plugins{
 		QueueSort: &schedulerapi.PluginSet{
 			Enabled: []schedulerapi.Plugin{
 				{Name: queuesort.Name},
@@ -146,11 +146,6 @@ func getDefaultConfig() *schedulerapi.Plugins {
 			},
 		},
 	}
-
-	if utilfeature.DefaultFeatureGate.Enabled(features.NodeResourceTopology) {
-		ret.Filter.Enabled = append(ret.Filter.Enabled, schedulerapi.Plugin{Name: noderesources.NodeResourceTopologyMatchName})
-	}
-	return ret
 }
 
 func getClusterAutoscalerConfig() *schedulerapi.Plugins {
@@ -165,6 +160,9 @@ func getClusterAutoscalerConfig() *schedulerapi.Plugins {
 }
 
 func applyFeatureGates(config *schedulerapi.Plugins) {
+	if utilfeature.DefaultFeatureGate.Enabled(features.NodeResourceTopology) {
+		config.Filter.Enabled = append(config.Filter.Enabled, schedulerapi.Plugin{Name: noderesources.NodeResourceTopologyMatchName})
+	}
 	if !utilfeature.DefaultFeatureGate.Enabled(features.DefaultPodTopologySpread) {
 		// When feature is enabled, the default spreading is done by
 		// PodTopologySpread plugin, which is enabled by default.
