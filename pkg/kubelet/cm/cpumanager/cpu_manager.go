@@ -488,5 +488,9 @@ func (m *manager) updateContainerCPUSet(containerID string, cpus cpuset.CPUSet) 
 }
 
 func (m *manager) GetCPUs(podUID, containerName string) cpuset.CPUSet {
-	return m.state.GetCPUSetOrDefault(podUID, containerName)
+	if result, ok := m.state.GetCPUSet(string(podUID), containerName); ok {
+		return result
+	}
+
+	return cpuset.CPUSet{}
 }
